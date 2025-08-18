@@ -27,13 +27,6 @@ ENGLISH_WORDS = load_dictionary()
 def create_board():
     return [["." for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 
-def print_board(board):
-    header = "   " + " ".join(f"{i:2}" for i in range(BOARD_SIZE))
-    print(header)
-    for i, row in enumerate(board):
-        row_str = " ".join(f"{ch:2}" for ch in row)
-        print(f"{i:2} {row_str}")
-
 def place_word(board, word, row, col, direction):
     word = word.upper()
     for i, ch in enumerate(word):
@@ -143,22 +136,21 @@ def generate_moves(board, rack):
     results.sort(key=lambda x: x[1], reverse=True)
     return results[:10]
 
-
 # ---------------- STREAMLIT UI ----------------
 st.title("Scrabble Helper 1")
 
-# init session state
+# --- Initialize session state ---
 if "board" not in st.session_state:
     st.session_state.board = create_board()
     st.session_state.move_history = []
 if "moves" not in st.session_state:
     st.session_state.moves = []
+if "rack_input" not in st.session_state:
+    st.session_state.rack_input = ""
 
-
-# display board
+# --- Display board ---
 st.subheader("Current Board")
 st.table(st.session_state.board)
-
 
 # --- Place Word ---
 with st.form("place_word_form"):
@@ -173,23 +165,26 @@ if submitted and word:
     st.session_state.board = place_word(st.session_state.board, word, row, col, direction)
     st.session_state.move_history.append((word.upper(), row, col, direction.upper(), prev_board))
 
-
 # --- Undo Move ---
 if st.button("Undo Last Move"):
     if st.session_state.move_history:
         _, _, _, _, prev_board = st.session_state.move_history.pop()
         st.session_state.board = undo_word(st.session_state.board, prev_board)
 
+# --- Rack input and Suggest Moves ---
+st.session_state.rack_input = st.text_input(
+    "Enter your rack letters (e.g. AETRSUN)",
+    value=st.session_state.rack_input,
+    key="rack_input"
+)
 
-# --- Suggest Moves ---
-with st.form("suggest_moves_form"):
-    rack = st.text_input("Enter your rack letters (e.g. AETRSUN)", key="rack")
-    suggest = st.form_submit_button("Suggest Moves")
+if st.button("Suggest Moves"):
+    if st.session_state.rack_input:
+        st.session_state.moves = generate_moves(st.session_state.board, st.session_state.rack_input)
+    else:
+        st.session_state.moves = []
 
-if suggest and rack:
-    st.session_state.moves = generate_moves(st.session_state.board, rack)
-
-# display moves
+# --- Display suggested moves ---
 if st.session_state.moves:
     st.subheader("Suggested Moves")
     for (word, r, c, d), score in st.session_state.moves:
