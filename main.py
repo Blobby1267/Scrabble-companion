@@ -1,4 +1,5 @@
 from english_words import get_english_words_set
+import streamlit as st
 
 
 BOARD_SIZE = 15
@@ -140,46 +141,43 @@ def generate_moves(board, rack):
     results.sort(key=lambda x: x[1], reverse=True)
     return results[:10]
 
-# ----- Main Loop -----
-def run():
-    board = create_board()
-    move_history = []
+# --- Streamlit UI ---
+st.title("Scrabble Helper")
 
-    print("Scrabble helper started!")
-    print("Commands:\n- Enter opponent moves: WORD ROW COL DIRECTION ")
-    print("- Enter '?' → get move suggestions for your rack")
-    print("- Enter '-' → undo last move")
-    print("- Enter 'exit' → quit\n")
+if "board" not in st.session_state:
+    st.session_state.board = create_board()
+    st.session_state.move_history = []
 
-    while True:
-        user_input = input("Your input: ").strip().lower()
-        if user_input == "exit":
-            break
-        elif user_input == "-":
-            if move_history:
-                last_move = move_history.pop()
-                undo_word(board, *last_move)
-                print("Undid last move")
-                print_board(board)
-            else:
-                print("No moves to undo")
-        elif user_input == "?":
-            rack = input("Enter your rack letters: ").strip().upper()
-            moves = generate_moves(board, rack)
-            if moves:
-                print("\nBest moves:")
-                for (word, r, c, d), score in moves:
-                    print(f"{word} at ({r},{c}) {d} → {score} pts")
-            else:
-                print("No valid moves found")
-        else:
-            parts = user_input.split()
-            if len(parts) == 4:
-                word, row, col, direction = parts
-                row = int(row)
-                col = int(col)
-                previous_board = [row.copy() for row in board]
-                place_word(board, word, row, col, direction)
-                move_history.append((word.upper(), row, col, direction.upper(), previous_board))
-            else:
-                print("Invalid command")
+# Display board
+st.subheader("Current Board")
+st.table(st.session_state.board)
+
+# --- Input for placing words ---
+with st.form("place_word_form"):
+    word = st.text_input("Word to place (e.g. HELLO)")
+    row = st.number_input("Row", min_value=0, max_value=BOARD_SIZE-1, value=7)
+    col = st.number_input("Column", min_value=0, max_value=BOARD_SIZE-1, value=7)
+    direction = st.radio("Direction", ["H", "V"])
+    submitted = st.form_submit_button("Place Word")
+    if submitted and word:
+        prev_board = [r.copy() for r in st.session_state.board]
+        st.session_state.board = place_word(st.session_state.board, word, row, col, direction)
+        st.session_state.move_history.append((word.upper(), row, col, direction.upper(), prev_board))
+
+# Undo move
+if st.button("Undo Last Move"):
+    if st.session_state.move_history:
+        last_move = st.session_state.move_history.pop()
+        _, _, _, _, prev_board = last_move
+        st.session_state.board = undo_word(st.session_state.board, prev_board)
+
+# Generate suggestions
+st.subheader("Find Best Moves")
+rack = st.text_input("Enter your rack letters (e.g. AETRSUN)")
+if st.button("Suggest Moves") and rack:
+    moves = generate_moves(st.session_state.board, rack)
+    if moves:
+        for (word, r, c, d), score in moves:
+            st.write(f"{word} at ({r},{c}) {d} → {score} pts")
+    else:
+        st.write("No valid moves found.")
