@@ -146,7 +146,7 @@ def generate_moves(board, rack):
     return results[:10]
 
 # --- Streamlit UI ---
-st.title("Scrabble Helper (Oxford 3000 Edition)")
+st.title("Scrabble Helper")
 
 if "board" not in st.session_state:
     st.session_state.board = create_board()
@@ -156,7 +156,7 @@ st.subheader("Current Board")
 st.table(st.session_state.board)
 
 with st.form("place_word_form"):
-    word = st.text_input("Word to place (e.g. HELLO)")
+    word = st.text_input("Word to place")
     row = st.number_input("Row", min_value=0, max_value=BOARD_SIZE-1, value=7)
     col = st.number_input("Column", min_value=0, max_value=BOARD_SIZE-1, value=7)
     direction = st.radio("Direction", ["H", "V"])
