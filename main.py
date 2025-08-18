@@ -176,17 +176,19 @@ rack_input = st.text_input(
     "Enter your rack letters (e.g. AETRSUN)", 
     value=st.session_state.rack_input, 
     key="rack_input"
-)
+).upper()
 
 # --- Suggest Moves ---
 if st.button("Suggest Moves"):
-    if rack_input:
+    if rack_input and rack_input.isalpha():
         st.session_state.moves = generate_moves(st.session_state.board, rack_input)
     else:
+        st.warning("Please enter valid letters (A-Z)")
         st.session_state.moves = []
 
 # --- Display Suggested Moves ---
 if st.session_state.moves:
-    st.subheader("Suggested Moves")
-    for (word, r, c, d), score in st.session_state.moves:
-        st.write(f"{word} at ({r},{c}) {d} → {score} pts")
+    st.subheader("Top Suggested Moves")
+    for i, (move, score) in enumerate(st.session_state.moves, 1):
+        word, r, c, d = move
+        st.write(f"{i}. {word} at ({r},{c}) {d} → {score} pts")
