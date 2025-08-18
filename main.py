@@ -171,18 +171,16 @@ if st.button("Undo Last Move"):
         _, _, _, _, prev_board = st.session_state.move_history.pop()
         st.session_state.board = undo_word(st.session_state.board, prev_board)
 
-# --- Rack input and Suggest Moves ---
-st.session_state.rack_input = st.text_input(
-    "Enter your rack letters (e.g. AETRSUN)",
-    value=st.session_state.rack_input,
-    key="rack_input"
-)
+# Simply use the key parameter; Streamlit will manage session state automatically
+rack_input = st.text_input("Enter your rack letters (e.g. AETRSUN)", value=st.session_state.get("rack_input", ""), key="rack_input")
 
+# Use rack_input in your button logic
 if st.button("Suggest Moves"):
-    if st.session_state.rack_input:
-        st.session_state.moves = generate_moves(st.session_state.board, st.session_state.rack_input)
+    if rack_input:
+        st.session_state.moves = generate_moves(st.session_state.board, rack_input)
     else:
         st.session_state.moves = []
+
 
 # --- Display suggested moves ---
 if st.session_state.moves:
