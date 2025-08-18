@@ -168,7 +168,7 @@ def find_moves(board, rack_letters):
 
 # Streamlit UI
 def main():
-    st.title("Scrabble Helper")
+    st.title("Scrabble Companion")
     init_session()
     
     # Display board
