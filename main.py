@@ -145,7 +145,7 @@ def generate_moves(board, rack):
 
 
 # ---------------- STREAMLIT UI ----------------
-st.title("Scrabble Helper")
+st.title("Scrabble Helper 1")
 
 # init session state
 if "board" not in st.session_state:
