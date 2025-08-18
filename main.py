@@ -1,6 +1,5 @@
-from english_words import get_english_words_set
 import streamlit as st
-
+import os
 
 BOARD_SIZE = 15
 
@@ -14,11 +13,21 @@ LETTER_SCORES = {
     **dict.fromkeys(list("qz"), 10),
 }
 
+# --- Load Oxford 5000 Word List ---
+def load_dictionary(path="Oxford5000.txt"):
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return set(w.strip().lower() for w in f if w.strip())
+    else:
+        # fallback if file missing
+        return {"hello", "world", "scrabble", "python", "play"}
+
+ENGLISH_WORDS = load_dictionary()
+
 def create_board():
     return [["." for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 
 def print_board(board):
-    # Column headers
     header = "   " + " ".join(f"{i:2}" for i in range(BOARD_SIZE))
     print(header)
     for i, row in enumerate(board):
@@ -33,11 +42,10 @@ def place_word(board, word, row, col, direction):
         board[r][c] = ch
     print(f"Placed {word} at ({row},{col}) {direction.upper()}")
     print_board(board)
+    return board
 
-def undo_word(board, word, row, col, direction, previous_board):
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            board[r][c] = previous_board[r][c]
+def undo_word(board, previous_board):
+    return [r.copy() for r in previous_board]
 
 def find_anchor_squares(board):
     anchors = set()
@@ -55,8 +63,7 @@ def find_anchor_squares(board):
 def possible_words(rack, must_include=None):
     rack = rack.upper()
     results = []
-    english_words_set = get_english_words_set(['web2'], lower=True)
-    for word in english_words_set:
+    for word in ENGLISH_WORDS:
         word = word.upper()
         temp_rack = list(rack)
         can_make = True
@@ -83,19 +90,17 @@ def can_place(board, word, row, col, direction):
     for i, ch in enumerate(word):
         r = row + i if direction.upper() == "V" else row
         c = col + i if direction.upper() == "H" else col
-        
-        # Check if the cell conflicts with existing letters
+        if r >= board_size or c >= board_size:
+            return False
         if board[r][c] != "." and board[r][c] != ch:
             return False
     
-    # Check the cell before the word
     before_r = row - 1 if direction.upper() == "V" else row
     before_c = col - 1 if direction.upper() == "H" else col
     if 0 <= before_r < board_size and 0 <= before_c < board_size:
         if board[before_r][before_c] != ".":
             return False
     
-    # Check the cell after the word
     after_r = row + word_len if direction.upper() == "V" else row
     after_c = col + word_len if direction.upper() == "H" else col
     if 0 <= after_r < board_size and 0 <= after_c < board_size:
@@ -103,7 +108,6 @@ def can_place(board, word, row, col, direction):
             return False
     
     return True
-
 
 def word_score(word):
     word = word.lower()
@@ -142,17 +146,15 @@ def generate_moves(board, rack):
     return results[:10]
 
 # --- Streamlit UI ---
-st.title("Scrabble Helper")
+st.title("Scrabble Helper (Oxford 3000 Edition)")
 
 if "board" not in st.session_state:
     st.session_state.board = create_board()
     st.session_state.move_history = []
 
-# Display board
 st.subheader("Current Board")
 st.table(st.session_state.board)
 
-# --- Input for placing words ---
 with st.form("place_word_form"):
     word = st.text_input("Word to place (e.g. HELLO)")
     row = st.number_input("Row", min_value=0, max_value=BOARD_SIZE-1, value=7)
@@ -164,14 +166,12 @@ with st.form("place_word_form"):
         st.session_state.board = place_word(st.session_state.board, word, row, col, direction)
         st.session_state.move_history.append((word.upper(), row, col, direction.upper(), prev_board))
 
-# Undo move
 if st.button("Undo Last Move"):
     if st.session_state.move_history:
         last_move = st.session_state.move_history.pop()
         _, _, _, _, prev_board = last_move
         st.session_state.board = undo_word(st.session_state.board, prev_board)
 
-# Generate suggestions
 st.subheader("Find Best Moves")
 rack = st.text_input("Enter your rack letters (e.g. AETRSUN)")
 if st.button("Suggest Moves") and rack:
