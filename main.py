@@ -130,7 +130,7 @@ if "moves" not in st.session_state:
     st.session_state.moves = []
 
 # UI Layout
-st.title("Scrabble Helper")
+st.title("Scrabble Helper 2")
 
 # Board Display
 st.subheader("Current Board")
