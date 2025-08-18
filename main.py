@@ -182,14 +182,14 @@ if st.button("Undo Last Move"):
 
 
 # --- Suggest Moves ---
-rack = st.text_input("Enter your rack letters (e.g. AETRSUN)", key="rack")
+with st.form("suggest_moves_form"):
+    rack = st.text_input("Enter your rack letters (e.g. AETRSUN)", key="rack")
+    suggest = st.form_submit_button("Suggest Moves")
 
-if st.button("Suggest Moves"):
-    if rack:
-        st.session_state.moves = generate_moves(st.session_state.board, rack)
-    else:
-        st.session_state.moves = []
+if suggest and rack:
+    st.session_state.moves = generate_moves(st.session_state.board, rack)
 
+# display moves
 if st.session_state.moves:
     st.subheader("Suggested Moves")
     for (word, r, c, d), score in st.session_state.moves:
