@@ -40,8 +40,6 @@ def place_word(board, word, row, col, direction):
         r = row + i if direction.upper() == "V" else row
         c = col + i if direction.upper() == "H" else col
         board[r][c] = ch
-    print(f"Placed {word} at ({row},{col}) {direction.upper()}")
-    print_board(board)
     return board
 
 def undo_word(board, previous_board):
@@ -145,39 +143,58 @@ def generate_moves(board, rack):
     results.sort(key=lambda x: x[1], reverse=True)
     return results[:10]
 
-# --- Streamlit UI ---
+
+# ---------------- STREAMLIT UI ----------------
 st.title("Scrabble Helper")
 
+# init session state
 if "board" not in st.session_state:
     st.session_state.board = create_board()
     st.session_state.move_history = []
+if "moves" not in st.session_state:
+    st.session_state.moves = []
 
+
+# display board
 st.subheader("Current Board")
 st.table(st.session_state.board)
 
+
+# --- Place Word ---
 with st.form("place_word_form"):
     word = st.text_input("Word to place")
     row = st.number_input("Row", min_value=0, max_value=BOARD_SIZE-1, value=7)
     col = st.number_input("Column", min_value=0, max_value=BOARD_SIZE-1, value=7)
     direction = st.radio("Direction", ["H", "V"])
     submitted = st.form_submit_button("Place Word")
-    if submitted and word:
-        prev_board = [r.copy() for r in st.session_state.board]
-        st.session_state.board = place_word(st.session_state.board, word, row, col, direction)
-        st.session_state.move_history.append((word.upper(), row, col, direction.upper(), prev_board))
 
-if st.button("Undo Last Move"):
+if submitted and word:
+    prev_board = [r.copy() for r in st.session_state.board]
+    st.session_state.board = place_word(st.session_state.board, word, row, col, direction)
+    st.session_state.move_history.append((word.upper(), row, col, direction.upper(), prev_board))
+
+
+# --- Undo Move ---
+def undo_last_move():
     if st.session_state.move_history:
-        last_move = st.session_state.move_history.pop()
-        _, _, _, _, prev_board = last_move
+        _, _, _, _, prev_board = st.session_state.move_history.pop()
         st.session_state.board = undo_word(st.session_state.board, prev_board)
 
-st.subheader("Find Best Moves")
-rack = st.text_input("Enter your rack letters (e.g. AETRSUN)")
-if st.button("Suggest Moves") and rack:
-    moves = generate_moves(st.session_state.board, rack)
-    if moves:
-        for (word, r, c, d), score in moves:
-            st.write(f"{word} at ({r},{c}) {d} → {score} pts")
+st.button("Undo Last Move", on_click=undo_last_move)
+
+
+# --- Suggest Moves ---
+def suggest_moves():
+    rack = st.session_state.rack
+    if rack:
+        st.session_state.moves = generate_moves(st.session_state.board, rack)
     else:
-        st.write("No valid moves found.")
+        st.session_state.moves = []
+
+st.text_input("Enter your rack letters (e.g. AETRSUN)", key="rack")
+st.button("Suggest Moves", on_click=suggest_moves)
+
+if st.session_state.moves:
+    st.subheader("Suggested Moves")
+    for (word, r, c, d), score in st.session_state.moves:
+        st.write(f"{word} at ({r},{c}) {d} → {score} pts")
