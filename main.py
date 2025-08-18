@@ -175,24 +175,20 @@ if submitted and word:
 
 
 # --- Undo Move ---
-def undo_last_move():
+if st.button("Undo Last Move"):
     if st.session_state.move_history:
         _, _, _, _, prev_board = st.session_state.move_history.pop()
         st.session_state.board = undo_word(st.session_state.board, prev_board)
 
-st.button("Undo Last Move", on_click=undo_last_move)
-
 
 # --- Suggest Moves ---
-def suggest_moves():
-    rack = st.session_state.rack
+rack = st.text_input("Enter your rack letters (e.g. AETRSUN)", key="rack")
+
+if st.button("Suggest Moves"):
     if rack:
         st.session_state.moves = generate_moves(st.session_state.board, rack)
     else:
         st.session_state.moves = []
-
-st.text_input("Enter your rack letters (e.g. AETRSUN)", key="rack")
-st.button("Suggest Moves", on_click=suggest_moves)
 
 if st.session_state.moves:
     st.subheader("Suggested Moves")
