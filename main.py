@@ -21,13 +21,13 @@ def init_session():
     if 'history' not in st.session_state:
         st.session_state.history = []
 
-# Word validation
+# Word dictionary
 def load_words():
     try:
         with open("Oxford5000.txt", "r") as f:
             return set(word.strip().lower() for word in f if word.strip())
     except:
-        return {"hello", "world", "scrabble", "python", "game", "play"}
+        return {"hello", "world", "scrabble", "python", "game", "play", "word", "test"}
 
 WORDS = load_words()
 
@@ -62,42 +62,44 @@ def find_moves(board, rack_letters):
         anchors.add((BOARD_SIZE//2, BOARD_SIZE//2))
     
     # Generate possible moves
-    for r, c in anchors:
-        for direction in ["H", "V"]:
-            for word in WORDS:
-                word = word.upper()
-                if len(word) > 7:  # Skip very long words for performance
-                    continue
-                    
-                # Check if we can make this word with our rack
-                temp_rack = list(rack)
-                valid = True
-                for letter in word:
-                    if letter in temp_rack:
-                        temp_rack.remove(letter)
-                    else:
-                        valid = False
-                        break
-                
-                if valid:
-                    # Try placing at different positions
+    for word in WORDS:
+        word = word.upper()
+        if len(word) > len(rack):  # Can't make words longer than rack
+            continue
+            
+        # Check if we can make this word with our rack
+        temp_rack = list(rack)
+        valid = True
+        for letter in word:
+            if letter in temp_rack:
+                temp_rack.remove(letter)
+            else:
+                valid = False
+                break
+        
+        if valid:
+            # Try placing at all possible positions
+            for r, c in anchors:
+                for direction in ["H", "V"]:
                     for offset in range(len(word)):
                         if direction == "H":
                             start_col = c - offset
                             start_row = r
+                            end_col = start_col + len(word) - 1
+                            end_row = start_row
                         else:
                             start_row = r - offset
                             start_col = c
+                            end_row = start_row + len(word) - 1
+                            end_col = start_col
                         
+                        # Check bounds
                         if start_row < 0 or start_col < 0:
                             continue
-                            
-                        if direction == "H" and start_col + len(word) > BOARD_SIZE:
-                            continue
-                        if direction == "V" and start_row + len(word) > BOARD_SIZE:
+                        if end_row >= BOARD_SIZE or end_col >= BOARD_SIZE:
                             continue
                             
-                        # Check if placement is valid
+                        # Check placement validity
                         valid_placement = True
                         for i, letter in enumerate(word):
                             pos_r = start_row + (i if direction == "V" else 0)
@@ -131,42 +133,46 @@ def main():
     st.subheader("Game Board")
     st.table(st.session_state.board)
     
-    # Word placement
+    # Word placement form
     with st.form("place_form"):
         word = st.text_input("Word to place", "").upper()
         row = st.number_input("Row", 0, BOARD_SIZE-1, 7)
         col = st.number_input("Column", 0, BOARD_SIZE-1, 7)
         direction = st.radio("Direction", ["H", "V"])
-        if st.form_submit_button("Place Word") and word:
+        submitted = st.form_submit_button("Place Word")
+        
+        if submitted and word:
             new_board = place_word(st.session_state.board, word, row, col, direction)
             st.session_state.history.append(st.session_state.board)
             st.session_state.board = new_board
-            st.session_state.moves = []  # Clear previous moves
-            st.rerun()
+            st.session_state.moves = []
     
     # Undo button
     if st.button("Undo") and st.session_state.history:
         st.session_state.board = st.session_state.history.pop()
-        st.session_state.moves = []  # Clear moves after undo
-        st.rerun()
+        st.session_state.moves = []
     
-    # Rack input and move suggestion
+    # Rack input
     st.subheader("Your Rack")
     rack_input = st.text_input("Enter your letters (e.g. AETRSUN)", st.session_state.rack).upper()
     st.session_state.rack = rack_input
     
-    if st.button("Suggest Moves"):
+    # Suggest moves button - now with immediate display
+    suggest_pressed = st.button("Suggest Moves")
+    
+    if suggest_pressed or st.session_state.moves:
         if st.session_state.rack and st.session_state.rack.isalpha():
-            st.session_state.moves = find_moves(st.session_state.board, st.session_state.rack)
-            st.rerun()
+            if suggest_pressed or not st.session_state.moves:
+                st.session_state.moves = find_moves(st.session_state.board, st.session_state.rack)
+            
+            if st.session_state.moves:
+                st.subheader("Suggested Moves")
+                for i, (word, row, col, direction, score) in enumerate(st.session_state.moves, 1):
+                    st.write(f"{i}. {word} at ({row},{col}) {direction} → {score} pts")
+            else:
+                st.write("No valid moves found with these letters.")
         else:
             st.warning("Please enter valid letters (A-Z)")
-    
-    # Display suggested moves
-    if st.session_state.moves:
-        st.subheader("Suggested Moves")
-        for i, (word, row, col, direction, score) in enumerate(st.session_state.moves, 1):
-            st.write(f"{i}. {word} at ({row},{col}) {direction} → {score} pts")
 
 if __name__ == "__main__":
     main()
