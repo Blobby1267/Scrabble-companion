@@ -137,9 +137,9 @@ def generate_moves(board, rack):
     return results[:10]
 
 # ---------------- STREAMLIT UI ----------------
-st.title("Scrabble Helper 1")
+st.title("Scrabble Helper")
 
-# --- Initialize session state ---
+# --- init session state ---
 if "board" not in st.session_state:
     st.session_state.board = create_board()
     st.session_state.move_history = []
@@ -148,7 +148,7 @@ if "moves" not in st.session_state:
 if "rack_input" not in st.session_state:
     st.session_state.rack_input = ""
 
-# --- Display board ---
+# --- display board ---
 st.subheader("Current Board")
 st.table(st.session_state.board)
 
@@ -171,18 +171,21 @@ if st.button("Undo Last Move"):
         _, _, _, _, prev_board = st.session_state.move_history.pop()
         st.session_state.board = undo_word(st.session_state.board, prev_board)
 
-# Simply use the key parameter; Streamlit will manage session state automatically
-rack_input = st.text_input("Enter your rack letters (e.g. AETRSUN)", value=st.session_state.get("rack_input", ""), key="rack_input")
+# --- Rack Input ---
+rack_input = st.text_input(
+    "Enter your rack letters (e.g. AETRSUN)", 
+    value=st.session_state.rack_input, 
+    key="rack_input"
+)
 
-# Use rack_input in your button logic
+# --- Suggest Moves ---
 if st.button("Suggest Moves"):
     if rack_input:
         st.session_state.moves = generate_moves(st.session_state.board, rack_input)
     else:
         st.session_state.moves = []
 
-
-# --- Display suggested moves ---
+# --- Display Suggested Moves ---
 if st.session_state.moves:
     st.subheader("Suggested Moves")
     for (word, r, c, d), score in st.session_state.moves:
