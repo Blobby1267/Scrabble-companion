@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 
 # Constants
 BOARD_SIZE = 15
@@ -10,10 +9,41 @@ LETTER_SCORES = {
     'y': 4, 'z': 10
 }
 
+# Bonus squares definition (Scrabble layout simplified)
+BONUS_TILES = {
+    # Triple Word
+    (0,0): "TW", (0,7): "TW", (0,14): "TW",
+    (7,0): "TW", (7,14): "TW",
+    (14,0): "TW", (14,7): "TW", (14,14): "TW",
+
+    # Double Word
+    (1,1): "DW", (2,2): "DW", (3,3): "DW", (4,4): "DW",
+    (7,7): "DW",  # center
+    (10,10): "DW", (11,11): "DW", (12,12): "DW", (13,13): "DW",
+    (1,13): "DW", (2,12): "DW", (3,11): "DW", (4,10): "DW",
+    (10,4): "DW", (11,3): "DW", (12,2): "DW", (13,1): "DW",
+
+    # Triple Letter
+    (1,5): "TL", (1,9): "TL", (5,1): "TL", (5,5): "TL",
+    (5,9): "TL", (5,13): "TL", (9,1): "TL", (9,5): "TL",
+    (9,9): "TL", (9,13): "TL", (13,5): "TL", (13,9): "TL",
+
+    # Double Letter
+    (0,3): "DL", (0,11): "DL", (2,6): "DL", (2,8): "DL",
+    (3,0): "DL", (3,7): "DL", (3,14): "DL", (6,2): "DL",
+    (6,6): "DL", (6,8): "DL", (6,12): "DL", (7,3): "DL",
+    (7,11): "DL", (8,2): "DL", (8,6): "DL", (8,8): "DL",
+    (8,12): "DL", (11,0): "DL", (11,7): "DL", (11,14): "DL",
+    (12,6): "DL", (12,8): "DL", (14,3): "DL", (14,11): "DL",
+}
+
 # Initialize session state
 def init_session():
     if 'board' not in st.session_state:
-        st.session_state.board = [['.' for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+        st.session_state.board = [
+            [BONUS_TILES.get((r,c), '.') for c in range(BOARD_SIZE)]
+            for r in range(BOARD_SIZE)
+        ]
     if 'rack' not in st.session_state:
         st.session_state.rack = ""
     if 'moves' not in st.session_state:
@@ -31,39 +61,61 @@ def load_words():
 
 WORDS = load_words()
 
-# Game functions
+# Place a word on the board
 def place_word(board, word, row, col, direction):
-    new_board = [row.copy() for row in board]
+    new_board = [r.copy() for r in board]
     word = word.upper()
     for i, letter in enumerate(word):
         r = row + (i if direction == "V" else 0)
         c = col + (i if direction == "H" else 0)
-        new_board[r][c] = letter
+        if new_board[r][c] in ('.', 'TW', 'DW', 'TL', 'DL'):
+            new_board[r][c] = letter
     return new_board
 
-def calculate_score(word):
-    return sum(LETTER_SCORES.get(letter.lower(), 0) for letter in word)
+# Score calculation with bonuses
+def calculate_score(board, word, row, col, direction):
+    word_multiplier = 1
+    total = 0
+    word = word.upper()
+    for i, letter in enumerate(word):
+        r = row + (i if direction == "V" else 0)
+        c = col + (i if direction == "H" else 0)
+        letter_score = LETTER_SCORES.get(letter.lower(), 0)
 
+        # Apply bonuses only if the square is still a bonus (not already covered)
+        if (r,c) in BONUS_TILES and board[r][c] in ('.','TW','DW','TL','DL'):
+            bonus = BONUS_TILES[(r,c)]
+            if bonus == "DL":
+                letter_score *= 2
+            elif bonus == "TL":
+                letter_score *= 3
+            elif bonus == "DW":
+                word_multiplier *= 2
+            elif bonus == "TW":
+                word_multiplier *= 3
+
+        total += letter_score
+
+    return total * word_multiplier
+
+# Simple move finder (bonus-aware scoring)
 def find_moves(board, rack_letters):
     rack = rack_letters.upper()
     moves = []
-    
-    # Find all existing letters on board
+
     existing_letters = []
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
-            if board[r][c] != '.':
+            if board[r][c].isalpha():
                 existing_letters.append((r, c, board[r][c]))
-    
-    # If no letters on board, only allow placement through center
+
+    center = BOARD_SIZE // 2
+
     if not existing_letters:
-        center = BOARD_SIZE // 2
         for word in WORDS:
             word = word.upper()
             if len(word) > len(rack):
                 continue
-                
-            # Check if we can make this word with our rack
             temp_rack = list(rack)
             valid = True
             for letter in word:
@@ -72,36 +124,28 @@ def find_moves(board, rack_letters):
                 else:
                     valid = False
                     break
-            
             if valid:
-                # Try placing through center
                 for direction in ["H", "V"]:
                     if direction == "H":
                         start_col = center - len(word) // 2
                         start_row = center
-                        if start_col < 0:
+                        if start_col < 0 or start_col + len(word) > BOARD_SIZE:
                             continue
                     else:
                         start_row = center - len(word) // 2
                         start_col = center
-                        if start_row < 0:
+                        if start_row < 0 or start_row + len(word) > BOARD_SIZE:
                             continue
-                    
-                    if (direction == "H" and start_col + len(word) > BOARD_SIZE) or \
-                       (direction == "V" and start_row + len(word) > BOARD_SIZE):
-                        continue
-                        
-                    score = calculate_score(word)
+
+                    score = calculate_score(board, word, start_row, start_col, direction)
                     moves.append((word, start_row, start_col, direction, score))
-        return moves[:10]
-    
-    # Generate possible moves that connect with existing letters
+        return sorted(moves, key=lambda x: -x[4])[:10]
+
+    # Try connecting to existing letters
     for word in WORDS:
         word = word.upper()
         if len(word) > len(rack):
             continue
-            
-        # Check if we can make this word with our rack
         temp_rack = list(rack)
         valid = True
         for letter in word:
@@ -110,52 +154,37 @@ def find_moves(board, rack_letters):
             else:
                 valid = False
                 break
-        
         if valid:
-            # Try placing the word in all possible positions where it connects with existing letters
             for r, c, existing_letter in existing_letters:
                 if existing_letter in word:
                     letter_index = word.index(existing_letter)
-                    
-                    # Try horizontal placement
+                    # Horizontal
                     start_col = c - letter_index
                     start_row = r
                     if start_col >= 0 and start_col + len(word) <= BOARD_SIZE:
                         valid_placement = True
-                        connects = False
                         for i, letter in enumerate(word):
                             pos_col = start_col + i
-                            if board[start_row][pos_col] != '.':
-                                if board[start_row][pos_col] != letter:
-                                    valid_placement = False
-                                    break
-                                else:
-                                    connects = True
-                        
-                        if valid_placement and connects:
-                            score = calculate_score(word)
+                            if board[start_row][pos_col].isalpha() and board[start_row][pos_col] != letter:
+                                valid_placement = False
+                                break
+                        if valid_placement:
+                            score = calculate_score(board, word, start_row, start_col, "H")
                             moves.append((word, start_row, start_col, "H", score))
-                    
-                    # Try vertical placement
+                    # Vertical
                     start_row = r - letter_index
                     start_col = c
                     if start_row >= 0 and start_row + len(word) <= BOARD_SIZE:
                         valid_placement = True
-                        connects = False
                         for i, letter in enumerate(word):
                             pos_row = start_row + i
-                            if board[pos_row][start_col] != '.':
-                                if board[pos_row][start_col] != letter:
-                                    valid_placement = False
-                                    break
-                                else:
-                                    connects = True
-                        
-                        if valid_placement and connects:
-                            score = calculate_score(word)
+                            if board[pos_row][start_col].isalpha() and board[pos_row][start_col] != letter:
+                                valid_placement = False
+                                break
+                        if valid_placement:
+                            score = calculate_score(board, word, start_row, start_col, "V")
                             moves.append((word, start_row, start_col, "V", score))
-    
-    # Remove duplicates and sort by score
+
     unique_moves = []
     seen = set()
     for move in sorted(moves, key=lambda x: -x[4]):
@@ -163,50 +192,43 @@ def find_moves(board, rack_letters):
         if key not in seen:
             seen.add(key)
             unique_moves.append(move)
-    
+
     return unique_moves[:10]
 
 # Streamlit UI
 def main():
     st.title("Scrabble Companion")
     init_session()
-    
-    # Display board
+
     st.subheader("Game Board")
     st.table(st.session_state.board)
-    
-    # Word placement form
+
     with st.form("place_form"):
         word = st.text_input("Word to place", "").upper()
         row = st.number_input("Row", 0, BOARD_SIZE-1, 7)
         col = st.number_input("Column", 0, BOARD_SIZE-1, 7)
         direction = st.radio("Direction", ["H", "V"])
         submitted = st.form_submit_button("Place Word")
-        
         if submitted and word:
             new_board = place_word(st.session_state.board, word, row, col, direction)
             st.session_state.history.append(st.session_state.board)
             st.session_state.board = new_board
             st.session_state.moves = []
-    
-    # Undo button
+
     if st.button("Undo") and st.session_state.history:
         st.session_state.board = st.session_state.history.pop()
         st.session_state.moves = []
-    
-    # Rack input
+
     st.subheader("Your Rack")
     rack_input = st.text_input("Enter your letters (e.g. AERIALS)", st.session_state.rack).upper()
     st.session_state.rack = rack_input
-    
-    # Suggest moves button
+
     if st.button("Suggest Moves"):
         if st.session_state.rack and st.session_state.rack.isalpha():
             st.session_state.moves = find_moves(st.session_state.board, st.session_state.rack)
         else:
             st.warning("Please enter valid letters (A-Z)")
-    
-    # Display suggested moves
+
     if st.session_state.moves:
         st.subheader("Suggested Moves")
         for i, (word, row, col, direction, score) in enumerate(st.session_state.moves, 1):
