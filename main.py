@@ -287,6 +287,22 @@ def find_word_placements(board, word, rack):
                         if is_valid_placement(board, word, v_row, v_col, "V", rack):
                             score = calculate_total_score(board, word, v_row, v_col, "V")
                             placements.append((word, v_row, v_col, "V", score))
+        
+        # Also try all possible placements that might take advantage of bonus tiles
+        # This is the key fix - we need to consider all positions, not just those connecting to existing letters
+        for direction in ["H", "V"]:
+            for row in range(BOARD_SIZE):
+                for col in range(BOARD_SIZE):
+                    # Check if the word fits on the board
+                    if direction == "H" and col + len(word) > BOARD_SIZE:
+                        continue
+                    if direction == "V" and row + len(word) > BOARD_SIZE:
+                        continue
+                    
+                    # Check if this placement is valid
+                    if is_valid_placement(board, word, row, col, direction, rack):
+                        score = calculate_total_score(board, word, row, col, direction)
+                        placements.append((word, row, col, direction, score))
     
     return placements
 
