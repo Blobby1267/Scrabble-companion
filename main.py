@@ -171,13 +171,13 @@ def find_moves(board, rack_letters):
     for word in WORDS:
         word = word.upper()
 
-        # Check if we can make this word with our rack
+        # Check if we can make this word with our rack and letters on the board
         temp_rack = list(rack)
         valid = True
         for letter in word:
             if letter in temp_rack:
                 temp_rack.remove(letter)
-            else:
+            elif letter not in [l[2] for l in existing_letters]:  # Check if the letter is on the board
                 valid = False
                 break
         
