@@ -54,7 +54,7 @@ def load_words():
         with open("Oxford5000.txt", "r") as f:
             return set(word.strip().lower() for word in f if word.strip())
     except:
-        return {"hello", "world", "scrabble", "python", "game", "play", "word", "test", "serial", "aerial", "cat", "at", "act", "car", "art", "rat", "tar"}
+        return {"hello", "world", "scrabble"}
 
 WORDS = load_words()
 
@@ -170,9 +170,7 @@ def find_moves(board, rack_letters):
     # Generate possible moves that connect with existing letters
     for word in WORDS:
         word = word.upper()
-        if len(word) > len(rack) + 7:  # Allow for using up to 7 existing letters
-            continue
-            
+
         # Check if we can make this word with our rack
         temp_rack = list(rack)
         valid = True
