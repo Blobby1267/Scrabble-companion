@@ -138,12 +138,13 @@ def find_moves(board, rack_letters):
 
             # Check if we can make this word with the rack and the existing letter
             temp_rack = list(rack)
+            letter_counts = {letter: temp_rack.count(letter) for letter in set(temp_rack)}
             valid = True
             for letter in word:
                 if letter == existing_letter:
                     continue
-                if letter in temp_rack:
-                    temp_rack.remove(letter)
+                if letter_counts.get(letter, 0) > 0:
+                    letter_counts[letter] -= 1
                 else:
                     valid = False
                     break
