@@ -82,13 +82,14 @@ def calculate_score(board, word, row, col, direction):
         c = col + (i if direction == "H" else 0)
         letter_score = LETTER_SCORES.get(letter.lower(), 0)
 
+        # Apply bonuses only if square is still unused
         if (r,c) in BONUS_TILES and board[r][c] in ('.','TW','DW','TL','DL','*'):
             bonus = BONUS_TILES[(r,c)]
             if bonus == "DL":
                 letter_score *= 2
             elif bonus == "TL":
                 letter_score *= 3
-            elif bonus == "DW" or bonus == "*":
+            elif bonus == "DW":
                 word_multiplier *= 2
             elif bonus == "TW":
                 word_multiplier *= 3
@@ -97,7 +98,7 @@ def calculate_score(board, word, row, col, direction):
 
     return total * word_multiplier
 
-# Simple move finder (bonus-aware scoring)
+# Move finder
 def find_moves(board, rack_letters):
     rack = rack_letters.upper()
     moves = []
@@ -110,79 +111,86 @@ def find_moves(board, rack_letters):
 
     center = BOARD_SIZE // 2
 
+    # First move: must cover center
     if not existing_letters:
         for word in WORDS:
             word = word.upper()
-            if len(word) > len(rack):
+            if not all(letter in rack for letter in word):
                 continue
-            temp_rack = list(rack)
-            valid = True
-            for letter in word:
-                if letter in temp_rack:
-                    temp_rack.remove(letter)
+            for direction in ["H", "V"]:
+                if direction == "H":
+                    start_col = center - len(word) // 2
+                    start_row = center
+                    if start_col < 0 or start_col + len(word) > BOARD_SIZE:
+                        continue
                 else:
-                    valid = False
-                    break
-            if valid:
-                for direction in ["H", "V"]:
-                    if direction == "H":
-                        start_col = center - len(word) // 2
-                        start_row = center
-                        if start_col < 0 or start_col + len(word) > BOARD_SIZE:
-                            continue
-                    else:
-                        start_row = center - len(word) // 2
-                        start_col = center
-                        if start_row < 0 or start_row + len(word) > BOARD_SIZE:
-                            continue
+                    start_row = center - len(word) // 2
+                    start_col = center
+                    if start_row < 0 or start_row + len(word) > BOARD_SIZE:
+                        continue
 
-                    score = calculate_score(board, word, start_row, start_col, direction)
-                    moves.append((word, start_row, start_col, direction, score))
+                score = calculate_score(board, word, start_row, start_col, direction)
+                moves.append((word, start_row, start_col, direction, score))
         return sorted(moves, key=lambda x: -x[4])[:10]
 
+    # Later moves: must intersect existing letters
     for word in WORDS:
         word = word.upper()
-        if len(word) > len(rack):
-            continue
-        temp_rack = list(rack)
-        valid = True
-        for letter in word:
-            if letter in temp_rack:
-                temp_rack.remove(letter)
-            else:
-                valid = False
-                break
-        if valid:
-            for r, c, existing_letter in existing_letters:
-                if existing_letter in word:
-                    letter_index = word.index(existing_letter)
-                    # Horizontal
-                    start_col = c - letter_index
-                    start_row = r
-                    if start_col >= 0 and start_col + len(word) <= BOARD_SIZE:
-                        valid_placement = True
-                        for i, letter in enumerate(word):
-                            pos_col = start_col + i
-                            if board[start_row][pos_col].isalpha() and board[start_row][pos_col] != letter:
-                                valid_placement = False
-                                break
-                        if valid_placement:
-                            score = calculate_score(board, word, start_row, start_col, "H")
-                            moves.append((word, start_row, start_col, "H", score))
-                    # Vertical
-                    start_row = r - letter_index
-                    start_col = c
-                    if start_row >= 0 and start_row + len(word) <= BOARD_SIZE:
-                        valid_placement = True
-                        for i, letter in enumerate(word):
-                            pos_row = start_row + i
-                            if board[pos_row][start_col].isalpha() and board[pos_row][start_col] != letter:
-                                valid_placement = False
-                                break
-                        if valid_placement:
-                            score = calculate_score(board, word, start_row, start_col, "V")
-                            moves.append((word, start_row, start_col, "V", score))
+        for r, c, existing_letter in existing_letters:
+            if existing_letter not in word:
+                continue
 
+            for letter_index, letter in enumerate(word):
+                if letter != existing_letter:
+                    continue
+
+                # Try horizontal
+                start_row, start_col = r, c - letter_index
+                if start_col >= 0 and start_col + len(word) <= BOARD_SIZE:
+                    used_from_rack = False
+                    valid = True
+                    temp_rack = list(rack)
+                    for i, ch in enumerate(word):
+                        cc = start_col + i
+                        if board[start_row][cc].isalpha():
+                            if board[start_row][cc] != ch:
+                                valid = False
+                                break
+                        else:
+                            if ch in temp_rack:
+                                temp_rack.remove(ch)
+                                used_from_rack = True
+                            else:
+                                valid = False
+                                break
+                    if valid and used_from_rack:
+                        score = calculate_score(board, word, start_row, start_col, "H")
+                        moves.append((word, start_row, start_col, "H", score))
+
+                # Try vertical
+                start_row, start_col = r - letter_index, c
+                if start_row >= 0 and start_row + len(word) <= BOARD_SIZE:
+                    used_from_rack = False
+                    valid = True
+                    temp_rack = list(rack)
+                    for i, ch in enumerate(word):
+                        rr = start_row + i
+                        if board[rr][start_col].isalpha():
+                            if board[rr][start_col] != ch:
+                                valid = False
+                                break
+                        else:
+                            if ch in temp_rack:
+                                temp_rack.remove(ch)
+                                used_from_rack = True
+                            else:
+                                valid = False
+                                break
+                    if valid and used_from_rack:
+                        score = calculate_score(board, word, start_row, start_col, "V")
+                        moves.append((word, start_row, start_col, "V", score))
+
+    # Deduplicate
     unique_moves = []
     seen = set()
     for move in sorted(moves, key=lambda x: -x[4]):
@@ -203,8 +211,8 @@ def main():
 
     with st.form("place_form"):
         word = st.text_input("Word to place", "").upper()
-        row = int(st.number_input("Row", 0, BOARD_SIZE-1, 7, step=1, format="%d"))
-        col = int(st.number_input("Column", 0, BOARD_SIZE-1, 7, step=1, format="%d"))
+        row = int(st.number_input("Row", 0, BOARD_SIZE-1, 7))
+        col = int(st.number_input("Column", 0, BOARD_SIZE-1, 7))
         direction = st.radio("Direction", ["H", "V"])
         submitted = st.form_submit_button("Place Word")
         if submitted and word:
