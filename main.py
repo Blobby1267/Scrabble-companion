@@ -72,57 +72,33 @@ def place_word(board, word, row, col, direction):
             new_board[r][c] = letter
     return new_board
 
-# Find all words formed by a placement (including cross words)
-def find_all_words(board, word, row, col, direction):
-    all_words = []
+# Check if a word can be placed at a given position
+def can_place_word(board, word, row, col, direction, rack):
     word = word.upper()
+    temp_rack = list(rack.upper())
     
-    # Add the main word
-    all_words.append((word, row, col, direction))
-    
-    # Find cross words
     for i, letter in enumerate(word):
         r = row + (i if direction == "V" else 0)
         c = col + (i if direction == "H" else 0)
         
-        # Skip if this position already had a letter (we're not placing anything new here)
-        if board[r][c].isalpha():
-            continue
-            
-        # Check for cross words in perpendicular direction
-        cross_direction = "V" if direction == "H" else "H"
+        # Check bounds
+        if r < 0 or r >= BOARD_SIZE or c < 0 or c >= BOARD_SIZE:
+            return False
         
-        # Find the start of the cross word
-        start_r, start_c = r, c
-        if cross_direction == "H":
-            while start_c > 0 and (board[start_r][start_c-1].isalpha() or (start_r == r and start_c-1 == c)):
-                start_c -= 1
-        else:
-            while start_r > 0 and (board[start_r-1][start_c].isalpha() or (start_r-1 == r and start_c == c)):
-                start_r -= 1
-                
-        # Build the cross word
-        cross_word = ""
-        cross_r, cross_c = start_r, start_c
-        while (cross_r < BOARD_SIZE and cross_c < BOARD_SIZE and 
-               (board[cross_r][cross_c].isalpha() or (cross_r == r and cross_c == c))):
-            if cross_r == r and cross_c == c:
-                cross_word += letter
+        # Check if position is already occupied with a different letter
+        if board[r][c].isalpha() and board[r][c] != letter:
+            return False
+        
+        # If position is empty, check if we have this letter in rack
+        if not board[r][c].isalpha():
+            if letter in temp_rack:
+                temp_rack.remove(letter)
             else:
-                cross_word += board[cross_r][cross_c]
-                
-            if cross_direction == "H":
-                cross_c += 1
-            else:
-                cross_r += 1
-                
-        # Only add if it's a valid word (more than one letter)
-        if len(cross_word) > 1:
-            all_words.append((cross_word, start_r, start_c, cross_direction))
-            
-    return all_words
+                return False
+    
+    return True
 
-# Calculate score for a single word
+# Calculate score for a word placement
 def calculate_word_score(board, word, row, col, direction):
     total = 0
     word_multiplier = 1
@@ -153,69 +129,6 @@ def calculate_word_score(board, word, row, col, direction):
     
     return total * word_multiplier
 
-# Calculate total score for a move
-def calculate_total_score(board, word, row, col, direction):
-    all_words = find_all_words(board, word, row, col, direction)
-    total_score = 0
-    
-    for w, r, c, d in all_words:
-        if w.lower() in WORDS or len(w) == 1:  # Allow single letters (they'll be part of other words)
-            total_score += calculate_word_score(board, w, r, c, d)
-    
-    return total_score
-
-# Check if a word placement is valid
-def is_valid_placement(board, word, row, col, direction, rack):
-    word = word.upper()
-    temp_rack = list(rack.upper())
-    uses_existing = False
-    touches_existing = False
-    
-    for i, letter in enumerate(word):
-        r = row + (i if direction == "V" else 0)
-        c = col + (i if direction == "H" else 0)
-        
-        # Check bounds
-        if r < 0 or r >= BOARD_SIZE or c < 0 or c >= BOARD_SIZE:
-            return False
-        
-        # Check if position is already occupied
-        if board[r][c].isalpha():
-            if board[r][c] != letter:
-                return False
-            uses_existing = True
-        else:
-            # Check if we have this letter in rack
-            if letter in temp_rack:
-                temp_rack.remove(letter)
-            else:
-                return False
-        
-        # Check if this placement touches existing tiles (for connection)
-        if not touches_existing:
-            for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
-                nr, nc = r + dr, c + dc
-                if 0 <= nr < BOARD_SIZE and 0 <= nc < BOARD_SIZE:
-                    if board[nr][nc].isalpha() and (nr != row or nc != col):
-                        touches_existing = True
-                        break
-    
-    # For first move, must cover center
-    center = BOARD_SIZE // 2
-    is_first_move = not any(any(cell.isalpha() for cell in row) for row in board)
-    if is_first_move:
-        covers_center = False
-        for i in range(len(word)):
-            r = row + (i if direction == "V" else 0)
-            c = col + (i if direction == "H" else 0)
-            if r == center and c == center:
-                covers_center = True
-                break
-        return covers_center
-    
-    # For subsequent moves, must connect to existing tiles
-    return uses_existing or touches_existing
-
 # Find all possible placements for a word
 def find_word_placements(board, word, rack):
     placements = []
@@ -235,61 +148,7 @@ def find_word_placements(board, word, rack):
     if len(needed_letters) > 0:
         return placements
     
-    # Find all existing letters on board
-    existing_letters = []
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            if board[r][c].isalpha():
-                existing_letters.append((r, c, board[r][c]))
-    
-    # If no existing letters (first move), place through center
-    if not existing_letters:
-        center = BOARD_SIZE // 2
-        for direction in ["H", "V"]:
-            if direction == "H":
-                for offset in range(len(word)):
-                    row = center
-                    col = center - offset
-                    if col >= 0 and col + len(word) <= BOARD_SIZE:
-                        if is_valid_placement(board, word, row, col, direction, rack):
-                            score = calculate_total_score(board, word, row, col, direction)
-                            placements.append((word, row, col, direction, score))
-            else:  # Vertical
-                for offset in range(len(word)):
-                    row = center - offset
-                    col = center
-                    if row >= 0 and row + len(word) <= BOARD_SIZE:
-                        if is_valid_placement(board, word, row, col, direction, rack):
-                            score = calculate_total_score(board, word, row, col, direction)
-                            placements.append((word, row, col, direction, score))
-    else:
-        # Try to place word by connecting to existing letters
-        for r, c, existing_letter in existing_letters:
-            # Check if word contains this letter
-            if existing_letter not in word:
-                continue
-                
-            # Find all positions where this letter appears in the word
-            for pos in range(len(word)):
-                if word[pos] == existing_letter:
-                    # Try horizontal placement
-                    h_row = r
-                    h_col = c - pos
-                    if h_col >= 0 and h_col + len(word) <= BOARD_SIZE:
-                        if is_valid_placement(board, word, h_row, h_col, "H", rack):
-                            score = calculate_total_score(board, word, h_row, h_col, "H")
-                            placements.append((word, h_row, h_col, "H", score))
-                    
-                    # Try vertical placement
-                    v_row = r - pos
-                    v_col = c
-                    if v_row >= 0 and v_row + len(word) <= BOARD_SIZE:
-                        if is_valid_placement(board, word, v_row, v_col, "V", rack):
-                            score = calculate_total_score(board, word, v_row, v_col, "V")
-                            placements.append((word, v_row, v_col, "V", score))
-    
-    # Also try all possible placements that might take advantage of bonus tiles
-    # This is the key fix - we need to consider all positions, not just those connecting to existing letters
+    # Try all possible positions on the board
     for direction in ["H", "V"]:
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
@@ -299,14 +158,14 @@ def find_word_placements(board, word, rack):
                 if direction == "V" and row + len(word) > BOARD_SIZE:
                     continue
                 
-                # Check if this placement is valid
-                if is_valid_placement(board, word, row, col, direction, rack):
-                    score = calculate_total_score(board, word, row, col, direction)
+                # Check if we can place the word here
+                if can_place_word(board, word, row, col, direction, rack):
+                    score = calculate_word_score(board, word, row, col, direction)
                     placements.append((word, row, col, direction, score))
     
     return placements
 
-# Improved move finder that properly handles cross words and bonus tiles
+# Find all possible moves
 def find_moves(board, rack_letters):
     rack = rack_letters.upper()
     moves = []
@@ -368,8 +227,8 @@ def main():
         st.subheader("Suggested Moves")
         for i, (word, row, col, direction, score) in enumerate(st.session_state.moves, 1):
             st.write(f"{i}. {word} at ({row},{col}) {direction} → {score} pts")
-    elif st.session_state.rack and not st.session_state.rack.isalpha():
-        st.warning("Please enter only letters A-Z")
+    elif st.session_state.rack and not st.session_state.moves:
+        st.warning("No valid moves found with these letters")
 
 if __name__ == "__main__":
     main()
