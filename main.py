@@ -120,127 +120,71 @@ def find_moves(board, rack_letters):
     rack = rack_letters.upper()
     moves = []
     
-    # Find all existing letters on board
+    # Find all existing letters on the board
     existing_letters = []
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
             if board[r][c] != '.':
                 existing_letters.append((r, c, board[r][c]))
     
-    # If no letters on board, only allow placement through center
-    if not existing_letters:
-        center = BOARD_SIZE // 2
+    # Generate possible moves that connect with existing letters
+    for r, c, existing_letter in existing_letters:
         for word in WORDS:
             word = word.upper()
-            if len(word) > len(rack):
+
+            # Skip words that don't contain the existing letter
+            if existing_letter not in word:
                 continue
-                
-            # Check if we can make this word with our rack
+
+            # Check if we can make this word with the rack and the existing letter
             temp_rack = list(rack)
             valid = True
             for letter in word:
+                if letter == existing_letter:
+                    continue
                 if letter in temp_rack:
                     temp_rack.remove(letter)
                 else:
                     valid = False
                     break
             
-            if valid:
-                # Try placing through center
-                for direction in ["H", "V"]:
-                    if direction == "H":
-                        start_col = center - len(word) // 2
-                        start_row = center
-                        if start_col < 0:
-                            continue
-                    else:
-                        start_row = center - len(word) // 2
-                        start_col = center
-                        if start_row < 0:
-                            continue
-                    
-                    if (direction == "H" and start_col + len(word) > BOARD_SIZE) or \
-                       (direction == "V" and start_row + len(word) > BOARD_SIZE):
-                        continue
-                        
-                    score = calculate_score(board, word, start_row, start_col, direction)
-                    moves.append((word, start_row, start_col, direction, score))
-        return moves[:10]
-    
-    # Generate possible moves that connect with existing letters
-    for word in WORDS:
-        word = word.upper()
+            if not valid:
+                continue
 
-        # Check if we can make this word with our rack and letters on the board
-        temp_rack = list(rack)
-        valid = True
-        for letter in word:
-            if letter in temp_rack:
-                temp_rack.remove(letter)
-            elif letter not in [l[2] for l in existing_letters]:  # Check if the letter is on the board
-                valid = False
-                break
-        
-        if not valid:
-            continue
-            
-        # Try placing the word in all possible positions where it connects with existing letters
-        for r, c, existing_letter in existing_letters:
-            if existing_letter in word:
-                # Find all positions where this letter appears in the word
-                for pos in range(len(word)):
-                    if word[pos] == existing_letter:
-                        # Try horizontal placement
-                        start_col = c - pos
-                        start_row = r
-                        if start_col >= 0 and start_col + len(word) <= BOARD_SIZE:
-                            valid_placement = True
-                            uses_existing = False
-                            for i, letter in enumerate(word):
-                                pos_col = start_col + i
-                                if board[start_row][pos_col] != '.':
-                                    if board[start_row][pos_col] != letter:
-                                        valid_placement = False
-                                        break
-                                    else:
-                                        uses_existing = True
-                            
-                            # Check tile before and after the word
-                            if valid_placement:
-                                if start_col > 0 and board[start_row][start_col - 1] != '.':
+            # Find all positions where the existing letter appears in the word
+            for pos in range(len(word)):
+                if word[pos] == existing_letter:
+                    # Try horizontal placement
+                    start_col = c - pos
+                    start_row = r
+                    if start_col >= 0 and start_col + len(word) <= BOARD_SIZE:
+                        valid_placement = True
+                        for i, letter in enumerate(word):
+                            pos_col = start_col + i
+                            if board[start_row][pos_col] != '.':
+                                if board[start_row][pos_col] != letter:
                                     valid_placement = False
-                                if start_col + len(word) < BOARD_SIZE and board[start_row][start_col + len(word)] != '.':
-                                    valid_placement = False
-                            
-                            if valid_placement and uses_existing:
-                                score = calculate_score(board, word, start_row, start_col, "H")
-                                moves.append((word, start_row, start_col, "H", score))
+                                    break
                         
-                        # Try vertical placement
-                        start_row = r - pos
-                        start_col = c
-                        if start_row >= 0 and start_row + len(word) <= BOARD_SIZE:
-                            valid_placement = True
-                            uses_existing = False
-                            for i, letter in enumerate(word):
-                                pos_row = start_row + i
-                                if board[pos_row][start_col] != '.':
-                                    if board[pos_row][start_col] != letter:
-                                        valid_placement = False
-                                        break
-                                    else:
-                                        uses_existing = True
-                            
-                            # Check tile before and after the word
-                            if valid_placement:
-                                if start_row > 0 and board[start_row - 1][start_col] != '.':
+                        if valid_placement:
+                            score = calculate_score(board, word, start_row, start_col, "H")
+                            moves.append((word, start_row, start_col, "H", score))
+                    
+                    # Try vertical placement
+                    start_row = r - pos
+                    start_col = c
+                    if start_row >= 0 and start_row + len(word) <= BOARD_SIZE:
+                        valid_placement = True
+                        for i, letter in enumerate(word):
+                            pos_row = start_row + i
+                            if board[pos_row][start_col] != '.':
+                                if board[pos_row][start_col] != letter:
                                     valid_placement = False
-                                if start_row + len(word) < BOARD_SIZE and board[start_row + len(word)][start_col] != '.':
-                                    valid_placement = False
-                            
-                            if valid_placement and uses_existing:
-                                score = calculate_score(board, word, start_row, start_col, "V")
-                                moves.append((word, start_row, start_col, "V", score))
+                                    break
+                        
+                        if valid_placement:
+                            score = calculate_score(board, word, start_row, start_col, "V")
+                            moves.append((word, start_row, start_col, "V", score))
     
     # Remove duplicates and sort by score
     unique_moves = []
