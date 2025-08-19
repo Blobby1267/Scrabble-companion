@@ -54,7 +54,7 @@ def load_words():
         with open("Oxford5000.txt", "r") as f:
             return set(word.strip().lower() for word in f if word.strip())
     except:
-        return {"hello", "world", "scrabble", "python", "game", "play", "word", "test", "serial", "aerial", "cat", "at", "act", "car", "art", "rat", "tar", "error", "terror"}
+        return {"hello", "world", "scrabble", "python", "game", "play", "word", "test", "serial", "aerial", "cat", "at", "act", "car", "art", "rat", "tar", "error", "terror", "tissue", "persist", "predator", "dispute", "disrupt", "deposit", "fate", "operator", "fade"}
 
 WORDS = load_words()
 
@@ -207,9 +207,8 @@ def can_place_word(board, word, row, col, direction, rack):
     if direction == "V" and row + len(word) > BOARD_SIZE:
         return False
     
-    # Check if word uses at least one existing letter or connects to existing words
+    # Check if word uses at least one existing letter
     uses_existing = False
-    connects_to_existing = False
     
     for i, letter in enumerate(word):
         r = row + (i if direction == "V" else 0)
@@ -230,16 +229,6 @@ def can_place_word(board, word, row, col, direction, rack):
                 temp_rack.remove(letter)
             else:
                 return False
-        
-        # Check if this placement connects to existing words
-        if not connects_to_existing:
-            # Check adjacent positions for existing letters
-            for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
-                nr, nc = r + dr, c + dc
-                if 0 <= nr < BOARD_SIZE and 0 <= nc < BOARD_SIZE:
-                    if board[nr][nc] != '.' and (nr != row or nc != col):
-                        connects_to_existing = True
-                        break
     
     # For first move, must use the center tile
     is_first_move = not any(any(cell != '.' for cell in row) for row in board)
@@ -252,8 +241,8 @@ def can_place_word(board, word, row, col, direction, rack):
                 return True
         return False
     
-    # For subsequent moves, must connect to existing words
-    return uses_existing or connects_to_existing
+    # For subsequent moves, must use at least one existing letter
+    return uses_existing
 
 # Validate all cross words are valid
 def validate_cross_words(board, word, row, col, direction):
