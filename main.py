@@ -164,8 +164,9 @@ def find_moves(board, rack_letters):
                     valid_placement = True
                     for i, letter in enumerate(word):
                         pos_col = start_col + i
+                        # Cannot overwrite existing letters except the one we intend to overlap
                         if board[start_row][pos_col] != '.':
-                            if board[start_row][pos_col] != letter:
+                            if pos_col != c or letter != existing_letter:
                                 valid_placement = False
                                 break
                     if valid_placement:
@@ -180,7 +181,7 @@ def find_moves(board, rack_letters):
                     for i, letter in enumerate(word):
                         pos_row = start_row + i
                         if board[pos_row][start_col] != '.':
-                            if board[pos_row][start_col] != letter:
+                            if pos_row != r or letter != existing_letter:
                                 valid_placement = False
                                 break
                     if valid_placement:
