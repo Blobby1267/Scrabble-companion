@@ -354,6 +354,88 @@ def find_moves(board, rack_letters):
                                     score = calculate_score(board, word, start_row, start_col, "V")
                                     moves.append((word, start_row, start_col, "V", score))
     
+    # Also try extending existing words
+    for r in range(BOARD_SIZE):
+        for c in range(BOARD_SIZE):
+            if board[r][c] != '.':
+                # Check if we can extend words horizontally
+                if c > 0 and board[r][c-1] == '.':
+                    # Find the start of the word to extend
+                    start_col = c
+                    while start_col > 0 and board[r][start_col-1] != '.':
+                        start_col -= 1
+                    
+                    # Build the existing word
+                    existing_word = ""
+                    col_idx = start_col
+                    while col_idx < BOARD_SIZE and board[r][col_idx] != '.':
+                        existing_word += board[r][col_idx]
+                        col_idx += 1
+                    
+                    # Try to extend the word to the left
+                    for word in WORDS:
+                        word = word.upper()
+                        if word.startswith(existing_word) and len(word) > len(existing_word):
+                            # Check if we can make the extension with our rack
+                            extension = word[len(existing_word):]
+                            temp_rack = list(rack)
+                            valid = True
+                            for letter in extension:
+                                if letter in temp_rack:
+                                    temp_rack.remove(letter)
+                                else:
+                                    valid = False
+                                    break
+                            
+                            if valid:
+                                start_col_ext = start_col - len(extension)
+                                if start_col_ext >= 0:
+                                    # Check if we can place the extension here
+                                    if can_place_word(board, extension, r, start_col_ext, "H", rack):
+                                        # Validate all cross words are valid
+                                        if validate_cross_words(board, extension, r, start_col_ext, "H"):
+                                            score = calculate_score(board, word, start_col_ext, r, "H")
+                                            moves.append((word, r, start_col_ext, "H", score))
+                
+                # Check if we can extend words vertically
+                if r > 0 and board[r-1][c] == '.':
+                    # Find the start of the word to extend
+                    start_row = r
+                    while start_row > 0 and board[start_row-1][c] != '.':
+                        start_row -= 1
+                    
+                    # Build the existing word
+                    existing_word = ""
+                    row_idx = start_row
+                    while row_idx < BOARD_SIZE and board[row_idx][c] != '.':
+                        existing_word += board[row_idx][c]
+                        row_idx += 1
+                    
+                    # Try to extend the word upward
+                    for word in WORDS:
+                        word = word.upper()
+                        if word.startswith(existing_word) and len(word) > len(existing_word):
+                            # Check if we can make the extension with our rack
+                            extension = word[len(existing_word):]
+                            temp_rack = list(rack)
+                            valid = True
+                            for letter in extension:
+                                if letter in temp_rack:
+                                    temp_rack.remove(letter)
+                                else:
+                                    valid = False
+                                    break
+                            
+                            if valid:
+                                start_row_ext = start_row - len(extension)
+                                if start_row_ext >= 0:
+                                    # Check if we can place the extension here
+                                    if can_place_word(board, extension, start_row_ext, c, "V", rack):
+                                        # Validate all cross words are valid
+                                        if validate_cross_words(board, extension, start_row_ext, c, "V"):
+                                            score = calculate_score(board, word, start_row_ext, c, "V")
+                                            moves.append((word, start_row_ext, c, "V", score))
+    
     # Remove duplicates and sort by score
     unique_moves = []
     seen = set()
