@@ -297,7 +297,7 @@ def find_moves(board, rack_letters):
     
     # Try all words that can be formed with the rack
     for word in WORDS:
-        if len(word) > len(rack) + 1:  # +1 for using existing letters
+        if len(word) > len(rack) + 7:  # Allow for using up to 7 existing letters
             continue
             
         placements = find_word_placements(board, word, rack)
