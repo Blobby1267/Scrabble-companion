@@ -51,7 +51,7 @@ def init_session():
 # Word dictionary
 def load_words():
     try:
-        with open("Oxford5000.txt", "r") as f:
+        with open("all_words.txt", "r") as f:
             return set(word.strip().lower() for word in f if word.strip())
     except:
         return {"hello", "world", "scrabble"}
