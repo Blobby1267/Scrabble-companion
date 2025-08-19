@@ -124,7 +124,7 @@ def find_moves(board, rack_letters):
     existing_letters = []
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
-            if board[r][c] != '.':
+            if board[r][c] != ('.' or 'DL' or 'TL' or 'DW' or 'TW' or '*'):
                 existing_letters.append((r, c, board[r][c]))
     
     # Generate possible moves that connect with existing letters
