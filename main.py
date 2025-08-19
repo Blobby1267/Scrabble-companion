@@ -119,75 +119,80 @@ def calculate_score(board, word, row, col, direction):
 def find_moves(board, rack_letters):
     rack = rack_letters.upper()
     moves = []
-    
+
     # Find all existing letters on the board
     existing_letters = []
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
             if board[r][c] != '.':
                 existing_letters.append((r, c, board[r][c]))
-    
-    # Generate possible moves that connect with existing letters
-    for r, c, existing_letter in existing_letters:
+
+    # If the board is empty, force first word to cover center
+    empty_board = len(existing_letters) == 0
+    center_r, center_c = BOARD_SIZE // 2, BOARD_SIZE // 2
+
+    for r, c, existing_letter in existing_letters if not empty_board else [(center_r, center_c, None)]:
         for word in WORDS:
             word = word.upper()
 
-            # Skip words that don't contain the existing letter
-            if existing_letter not in word:
+            # Skip words that don't contain the existing letter (unless empty board)
+            if not empty_board and existing_letter not in word:
                 continue
 
-            # Find all positions where the existing letter appears in the word
-            for pos in range(len(word)):
-                if word[pos] != existing_letter:
-                    continue
+            positions = [i for i, l in enumerate(word) if l == existing_letter] if existing_letter else [len(word)//2]
 
-                # Check if we can make this word with the rack and the existing letter at position `pos`
+            for pos in positions:
                 temp_rack = list(rack)
                 letter_counts = {letter: temp_rack.count(letter) for letter in set(temp_rack)}
                 valid = True
+
                 for i, letter in enumerate(word):
-                    if i == pos:  # Skip the board-covered letter at this position
-                        continue
+                    if existing_letter and i == pos:
+                        continue  # skip board-covered letter
                     if letter_counts.get(letter, 0) > 0:
                         letter_counts[letter] -= 1
                     else:
                         valid = False
                         break
-
                 if not valid:
                     continue
 
-                # Try horizontal placement
+                # Horizontal placement
                 start_col = c - pos
                 start_row = r
                 if start_col >= 0 and start_col + len(word) <= BOARD_SIZE:
-                    valid_placement = True
+                    overlaps = False
+                    conflict = False
                     for i, letter in enumerate(word):
                         pos_col = start_col + i
-                        # Cannot overwrite existing letters except the one we intend to overlap
                         if board[start_row][pos_col] != '.':
-                            if pos_col != c or letter != existing_letter:
-                                valid_placement = False
+                            if board[start_row][pos_col] == letter:
+                                overlaps = True
+                            else:
+                                conflict = True
                                 break
-                    if valid_placement:
+                    if overlaps and not conflict:
                         score = calculate_score(board, word, start_row, start_col, "H")
                         moves.append((word, start_row, start_col, "H", score))
-                
-                # Try vertical placement
+
+                # Vertical placement
                 start_row = r - pos
                 start_col = c
                 if start_row >= 0 and start_row + len(word) <= BOARD_SIZE:
-                    valid_placement = True
+                    overlaps = False
+                    conflict = False
                     for i, letter in enumerate(word):
                         pos_row = start_row + i
                         if board[pos_row][start_col] != '.':
-                            if pos_row != r or letter != existing_letter:
-                                valid_placement = False
+                            if board[pos_row][start_col] == letter:
+                                overlaps = True
+                            else:
+                                conflict = True
                                 break
-                    if valid_placement:
+                    if overlaps and not conflict:
                         score = calculate_score(board, word, start_row, start_col, "V")
                         moves.append((word, start_row, start_col, "V", score))
-    
+
     # Remove duplicates and sort by score
     unique_moves = []
     seen = set()
@@ -196,7 +201,7 @@ def find_moves(board, rack_letters):
         if key not in seen:
             seen.add(key)
             unique_moves.append(move)
-    
+
     return unique_moves[:10]
 
 # Streamlit UI
