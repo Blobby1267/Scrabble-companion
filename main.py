@@ -57,7 +57,7 @@ def load_words():
         with open("Oxford5000.txt", "r") as f:
             return set(word.strip().lower() for word in f if word.strip())
     except:
-        return {"hello", "world", "scrabble", "python", "game", "play", "word", "test", "serial", "aerial"}
+        return {"hello", "world", "scrabble", "python", "game", "play", "word", "test", "serial", "aerial", "cat", "at", "act"}
 
 WORDS = load_words()
 
@@ -72,12 +72,55 @@ def place_word(board, word, row, col, direction):
             new_board[r][c] = letter
     return new_board
 
-# Improved score calculation that accounts for existing tiles on bonus squares
+# Find cross words formed by a placement
+def find_cross_words(board, word, row, col, direction):
+    cross_words = []
+    word = word.upper()
+    
+    for i, letter in enumerate(word):
+        r = row + (i if direction == "V" else 0)
+        c = col + (i if direction == "H" else 0)
+        
+        # If this position already had a letter, no cross word is formed here
+        if board[r][c].isalpha():
+            continue
+            
+        # Check for cross words in perpendicular direction
+        cross_direction = "V" if direction == "H" else "H"
+        
+        # Find the start of the cross word
+        start_r, start_c = r, c
+        if cross_direction == "H":
+            while start_c > 0 and board[start_r][start_c-1].isalpha():
+                start_c -= 1
+        else:
+            while start_r > 0 and board[start_r-1][start_c].isalpha():
+                start_r -= 1
+                
+        # Build the cross word
+        cross_word = ""
+        cross_r, cross_c = start_r, start_c
+        while (cross_r < BOARD_SIZE and cross_c < BOARD_SIZE and 
+               (board[cross_r][cross_c].isalpha() or (cross_r == r and cross_c == c))):
+            cross_word += board[cross_r][cross_c] if (cross_r != r or cross_c != c) else letter
+            if cross_direction == "H":
+                cross_c += 1
+            else:
+                cross_r += 1
+                
+        # Only add if it's a valid word (more than one letter)
+        if len(cross_word) > 1 and cross_word.lower() in WORDS:
+            cross_words.append((cross_word, start_r, start_c, cross_direction))
+            
+    return cross_words
+
+# Improved score calculation that accounts for cross words
 def calculate_score(board, word, row, col, direction):
     total = 0
     word_multiplier = 1
     word = word.upper()
     
+    # Calculate score for the main word
     for i, letter in enumerate(word):
         r = row + (i if direction == "V" else 0)
         c = col + (i if direction == "H" else 0)
@@ -98,16 +141,45 @@ def calculate_score(board, word, row, col, direction):
                 word_multiplier *= 2
             elif bonus == "TW":
                 word_multiplier *= 3
-        # If there's already a tile here, we need to check if it was placed on a bonus square
-        # and if that bonus should still apply to cross words
-        elif bonus:
-            # For cross words, letter bonuses don't apply again, but word bonuses might
-            if bonus in ("DW", "TW"):
-                word_multiplier *= 2 if bonus == "DW" else 3
         
         total += letter_score
     
-    return total * word_multiplier
+    main_score = total * word_multiplier
+    
+    # Calculate score for cross words
+    cross_words = find_cross_words(board, word, row, col, direction)
+    cross_score = 0
+    
+    for cross_word, cross_r, cross_c, cross_dir in cross_words:
+        cross_total = 0
+        cross_word_multiplier = 1
+        
+        for i, letter in enumerate(cross_word):
+            r = cross_r + (i if cross_dir == "V" else 0)
+            c = cross_c + (i if cross_dir == "H" else 0)
+            
+            # Get base letter score
+            letter_score = LETTER_SCORES.get(letter.lower(), 0)
+            
+            # Check if this position has a bonus tile
+            bonus = BONUS_TILES.get((r, c), None)
+            
+            # Only apply bonus if this is the newly placed letter
+            if r == row + (i if direction == "V" else 0) and c == col + (i if direction == "H" else 0):
+                if bonus == "DL":
+                    letter_score *= 2
+                elif bonus == "TL":
+                    letter_score *= 3
+                elif bonus == "DW":
+                    cross_word_multiplier *= 2
+                elif bonus == "TW":
+                    cross_word_multiplier *= 3
+            
+            cross_total += letter_score
+        
+        cross_score += cross_total * cross_word_multiplier
+    
+    return main_score + cross_score
 
 # Check if a word placement is valid
 def is_valid_placement(board, word, row, col, direction, rack):
