@@ -248,6 +248,7 @@ casual
 casualty
 catalogue
 cater
+cat
 cattle
 caution
 cautious
