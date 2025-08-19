@@ -54,7 +54,7 @@ def load_words():
         with open("Oxford5000.txt", "r") as f:
             return set(word.strip().lower() for word in f if word.strip())
     except:
-        return {"hello", "world", "scrabble", "python", "game", "play", "word", "test", "serial", "aerial", "cat", "at", "act", "car", "art", "rat", "tar"}
+        return {"hello", "world", "scrabble", "python", "game", "play", "word", "test", "serial", "aerial", "cat", "at", "act", "car", "art", "rat", "tar", "error", "terror"}
 
 WORDS = load_words()
 
@@ -311,6 +311,13 @@ def find_moves(board, rack_letters):
                     moves.append((word, start_row, start_col, direction, score))
         return moves[:10]
     
+    # Find all existing letters on board
+    existing_letters = []
+    for r in range(BOARD_SIZE):
+        for c in range(BOARD_SIZE):
+            if board[r][c] != '.':
+                existing_letters.append((r, c, board[r][c]))
+    
     # Generate possible moves that connect with existing letters
     for word in WORDS:
         word = word.upper()
@@ -330,22 +337,33 @@ def find_moves(board, rack_letters):
         if not valid:
             continue
             
-        # Try placing the word in all possible positions
-        for row in range(BOARD_SIZE):
-            for col in range(BOARD_SIZE):
-                for direction in ["H", "V"]:
-                    # Check if the word fits on the board
-                    if direction == "H" and col + len(word) > BOARD_SIZE:
-                        continue
-                    if direction == "V" and row + len(word) > BOARD_SIZE:
-                        continue
-                    
-                    # Check if we can place the word here
-                    if can_place_word(board, word, row, col, direction, rack):
-                        # Validate all cross words are valid
-                        if validate_cross_words(board, word, row, col, direction):
-                            score = calculate_score(board, word, row, col, direction)
-                            moves.append((word, row, col, direction, score))
+        # Try placing the word by connecting to existing letters
+        for r, c, existing_letter in existing_letters:
+            if existing_letter in word:
+                # Find all positions where this letter appears in the word
+                for pos in range(len(word)):
+                    if word[pos] == existing_letter:
+                        # Try horizontal placement
+                        start_col = c - pos
+                        start_row = r
+                        if start_col >= 0 and start_col + len(word) <= BOARD_SIZE:
+                            # Check if we can place the word here
+                            if can_place_word(board, word, start_row, start_col, "H", rack):
+                                # Validate all cross words are valid
+                                if validate_cross_words(board, word, start_row, start_col, "H"):
+                                    score = calculate_score(board, word, start_row, start_col, "H")
+                                    moves.append((word, start_row, start_col, "H", score))
+                        
+                        # Try vertical placement
+                        start_row = r - pos
+                        start_col = c
+                        if start_row >= 0 and start_row + len(word) <= BOARD_SIZE:
+                            # Check if we can place the word here
+                            if can_place_word(board, word, start_row, start_col, "V", rack):
+                                # Validate all cross words are valid
+                                if validate_cross_words(board, word, start_row, start_col, "V"):
+                                    score = calculate_score(board, word, start_row, start_col, "V")
+                                    moves.append((word, start_row, start_col, "V", score))
     
     # Remove duplicates and sort by score
     unique_moves = []
