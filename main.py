@@ -18,7 +18,7 @@ BONUS_TILES = {
 
     # Double Word
     (1,1): "DW", (2,2): "DW", (3,3): "DW", (4,4): "DW",
-    (7,7): "DW",  # center
+    (7,7): "*",  # center
     (10,10): "DW", (11,11): "DW", (12,12): "DW", (13,13): "DW",
     (1,13): "DW", (2,12): "DW", (3,11): "DW", (4,10): "DW",
     (10,4): "DW", (11,3): "DW", (12,2): "DW", (13,1): "DW",
@@ -68,7 +68,7 @@ def place_word(board, word, row, col, direction):
     for i, letter in enumerate(word):
         r = row + (i if direction == "V" else 0)
         c = col + (i if direction == "H" else 0)
-        if new_board[r][c] in ('.', 'TW', 'DW', 'TL', 'DL'):
+        if new_board[r][c] in ('.', 'TW', 'DW', 'TL', 'DL', '*'):
             new_board[r][c] = letter
     return new_board
 
