@@ -82,14 +82,13 @@ def calculate_score(board, word, row, col, direction):
         c = col + (i if direction == "H" else 0)
         letter_score = LETTER_SCORES.get(letter.lower(), 0)
 
-        # Apply bonuses only if the square is still a bonus (not already covered)
-        if (r,c) in BONUS_TILES and board[r][c] in ('.','TW','DW','TL','DL'):
+        if (r,c) in BONUS_TILES and board[r][c] in ('.','TW','DW','TL','DL','*'):
             bonus = BONUS_TILES[(r,c)]
             if bonus == "DL":
                 letter_score *= 2
             elif bonus == "TL":
                 letter_score *= 3
-            elif bonus == "DW":
+            elif bonus == "DW" or bonus == "*":
                 word_multiplier *= 2
             elif bonus == "TW":
                 word_multiplier *= 3
@@ -141,7 +140,6 @@ def find_moves(board, rack_letters):
                     moves.append((word, start_row, start_col, direction, score))
         return sorted(moves, key=lambda x: -x[4])[:10]
 
-    # Try connecting to existing letters
     for word in WORDS:
         word = word.upper()
         if len(word) > len(rack):
@@ -205,8 +203,8 @@ def main():
 
     with st.form("place_form"):
         word = st.text_input("Word to place", "").upper()
-        row = st.number_input("Row", 0, BOARD_SIZE-1, 7)
-        col = st.number_input("Column", 0, BOARD_SIZE-1, 7)
+        row = int(st.number_input("Row", 0, BOARD_SIZE-1, 7, step=1, format="%d"))
+        col = int(st.number_input("Column", 0, BOARD_SIZE-1, 7, step=1, format="%d"))
         direction = st.radio("Direction", ["H", "V"])
         submitted = st.form_submit_button("Place Word")
         if submitted and word:
